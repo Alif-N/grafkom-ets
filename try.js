@@ -10,6 +10,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMappingExposure = 1.2;
 canvasContainer.appendChild(renderer.domElement);
 
 // Posisi kamera awal
@@ -17,15 +18,21 @@ camera.position.set(0, 1.5, 5);
 camera.lookAt(0, 1, 0);
 
 // Setup pencahayaan
-const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(5, 10, 7);
 directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 1024;
-directionalLight.shadow.mapSize.height = 1024;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.camera.far = 50;
 scene.add(directionalLight);
+
+// Point light untuk efek glow yang lebih baik
+const pointLight = new THREE.PointLight(0xff6b35, 0.3, 100);
+pointLight.position.set(10, 5, 10);
+scene.add(pointLight);
 
 // Variabel untuk karakter dan animasi
 let character = null;
@@ -54,7 +61,7 @@ let cameraMode = 'thirdPerson';
 const textureLoader = new THREE.TextureLoader();
 
 // Memuat tekstur Pokeball untuk marmer
-const pokeballTexture = textureLoader.load('textures/pokeball.png'); // Pastikan file pokeball.jpg tersedia
+const pokeballTexture = textureLoader.load('textures/pokeball.png');
 
 // Memuat tekstur untuk langit dan ground
 const skyTexture = textureLoader.load('textures/sky.jpg', () => {
@@ -136,7 +143,8 @@ Promise.all(loadingPromises)
     .then(() => {
         console.log('All models and animations loaded.');
         setupAnimations();
-        createFloatingMarbles(); // Panggil fungsi untuk membuat marmer
+        createFloatingMarbles();
+        createEnvironmentObjects();
     })
     .catch(err => {
         console.error('Failed to load one or more models:', err);
@@ -203,10 +211,90 @@ window.addEventListener('keyup', (e) => {
 
 // Array untuk menyimpan objek marmer
 const marbles = [];
+const marbleRadius = 0.8;
+const collisionDistance = 1.5;
+const collectedMarbles = new Set();
 
-// Fungsi untuk membuat 5 marmer dengan tekstur Pokeball
+// Batas ground untuk membatasi pergerakan karakter
+const groundBoundary = {
+    minX: -30,
+    maxX: 30,
+    minZ: -30,
+    maxZ: 30
+};
+
+// Data Pokémon untuk popup card
+const pokemonData = [
+    { name: 'Pikachu', type: 'Electric', color: '#FFD700' },
+    { name: 'Squirtle', type: 'Water', color: '#4A90E2' },
+    { name: 'Bulbasaur', type: 'Grass', color: '#7CB342' },
+    { name: 'Charmander', type: 'Fire', color: '#FF6B35' },
+    { name: 'Meowth', type: 'Normal', color: '#B8860B' }
+];
+
+// Fungsi untuk membuat lingkungan objek dekoratif dengan emissive glow
+function createEnvironmentObjects() {
+    // Membuat pilar-pilar cahaya dengan emissive material
+    const pillarPositions = [
+        { x: -20, z: -20 }, { x: 20, z: -20 },
+        { x: -20, z: 20 }, { x: 20, z: 20 }
+    ];
+
+    pillarPositions.forEach(pos => {
+        const pillarGeometry = new THREE.CylinderGeometry(0.5, 0.5, 8, 32);
+        const pillarMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            emissive: 0x00ff88,
+            emissiveIntensity: 0.6,
+            metalness: 0.5,
+            roughness: 0.4
+        });
+        const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
+        pillar.position.set(pos.x, 4, pos.z);
+        pillar.castShadow = true;
+        pillar.receiveShadow = true;
+        scene.add(pillar);
+
+        // Tambahkan point light di setiap pilar
+        const pillarLight = new THREE.PointLight(0x00ff88, 0.4, 30);
+        pillarLight.position.set(pos.x, 8, pos.z);
+        scene.add(pillarLight);
+    });
+
+    // Membuat kristal-kristal floating dengan emissive glow
+    for (let i = 0; i < 6; i++) {
+        const crystalGeometry = new THREE.OctahedronGeometry(0.6, 2);
+        const crystalColors = [0xff0088, 0x00ffff, 0xffff00, 0x00ff00, 0xff8800, 0xff0000];
+        const crystalMaterial = new THREE.MeshStandardMaterial({
+            color: crystalColors[i],
+            emissive: crystalColors[i],
+            emissiveIntensity: 0.8,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
+
+        const angle = (i / 6) * Math.PI * 2;
+        const radius = 25;
+        crystal.position.set(
+            Math.cos(angle) * radius,
+            5 + Math.sin(Date.now() * 0.0005 + i) * 2,
+            Math.sin(angle) * radius
+        );
+        crystal.castShadow = true;
+        scene.add(crystal);
+
+        // Simpan referensi untuk animasi
+        if (!scene.userData.crystals) {
+            scene.userData.crystals = [];
+        }
+        scene.userData.crystals.push({ mesh: crystal, angle: angle, radius: radius, index: i });
+    }
+}
+
+// Fungsi untuk membuat 5 marmer dengan tekstur Pokeball dan emissive effect
 function createFloatingMarbles() {
-    const marbleGeometry = new THREE.SphereGeometry(0.8, 32, 32); // Ukuran marmer
+    const marbleGeometry = new THREE.SphereGeometry(marbleRadius, 32, 32);
 
     for (let i = 0; i < 5; i++) {
         const marbleMaterial = new THREE.MeshPhysicalMaterial({
@@ -214,21 +302,128 @@ function createFloatingMarbles() {
             roughness: 0.2,
             metalness: 0.1,
             clearcoat: 1,
-            clearcoatRoughness: 0.2
+            clearcoatRoughness: 0.2,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.3
         });
 
         const marble = new THREE.Mesh(marbleGeometry, marbleMaterial);
 
-        // Atur posisi acak di dalam area ground
         const groundSize = 60;
         marble.position.x = (Math.random() - 0.5) * groundSize;
         marble.position.z = (Math.random() - 0.5) * groundSize;
-        marble.position.y = 1; // Ketinggian awal
+        marble.position.y = 1;
 
         marble.castShadow = true;
+        marble.userData.index = i;
+        marble.userData.collected = false;
         scene.add(marble);
         marbles.push(marble);
+
+        // Tambahkan point light untuk setiap marmer
+        const marbleLight = new THREE.PointLight(0xffffff, 0.2, 10);
+        marbleLight.position.copy(marble.position);
+        scene.add(marbleLight);
+        marble.userData.light = marbleLight;
     }
+}
+
+// Fungsi untuk menampilkan popup card
+function showPopupCard(marbleIndex) {
+    const pokemon = pokemonData[marbleIndex];
+
+    let existingCard = document.getElementById(`card-${marbleIndex}`);
+    if (existingCard) return;
+
+    const card = document.createElement('div');
+    card.id = `card-${marbleIndex}`;
+    card.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,248,255,0.90) 100%);
+        border: 2px solid rgba(100,100,100,0.3);
+        border-radius: 15px;
+        padding: 30px;
+        min-width: 300px;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15), 0 0 30px rgba(0,0,0,0.1);
+        z-index: 1000;
+        backdrop-filter: blur(10px);
+        animation: popCardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    `;
+
+    card.innerHTML = `
+        <div style="font-size: 24px; margin-bottom: 10px; color: #666;">✨ Pokémon Caught! ✨</div>
+        <div style="font-size: 36px; font-weight: bold; color: #333; margin: 15px 0;">${pokemon.name}</div>
+        <div style="font-size: 18px; color: #888; margin-bottom: 20px; background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 6px;">[${pokemon.type}]</div>
+        <button onclick="this.parentElement.style.animation='popCardOut 0.5s ease-in forwards'; setTimeout(() => this.parentElement.remove(), 500)" 
+                style="background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%); color: #333; border: 1px solid #ccc; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: all 0.3s ease;">
+            Close
+        </button>
+    `;
+
+    document.body.appendChild(card);
+
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes popCardIn {
+            0% {
+                transform: translate(-50%, -50%) scale(0) rotateY(90deg);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.05) rotateY(0deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1) rotateY(0deg);
+                opacity: 1;
+            }
+        }
+        @keyframes popCardOut {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0) rotateY(90deg);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+
+    setTimeout(() => {
+        if (card.parentElement) {
+            card.style.animation = 'popCardOut 0.5s ease-in forwards';
+            setTimeout(() => card.remove(), 500);
+        }
+    }, 4000);
+}
+
+// Fungsi untuk mendeteksi collision
+function checkCollisions() {
+    if (!character) return;
+
+    marbles.forEach((marble) => {
+        if (marble.userData.collected) return;
+
+        const distance = character.position.distanceTo(marble.position);
+
+        if (distance < collisionDistance) {
+            marble.userData.collected = true;
+
+            scene.remove(marble);
+            if (marble.userData.light) {
+                scene.remove(marble.userData.light);
+            }
+
+            showPopupCard(marble.userData.index);
+
+            marble.scale.set(0, 0, 0);
+        }
+    });
 }
 
 // Fungsi animasi utama
@@ -239,7 +434,6 @@ function animate() {
     if (character) {
         const hasMovement = keyboard.w || keyboard.r || keyboard.a || keyboard.d;
 
-        // Logika pergerakan karakter
         let currentSpeed = 0;
         if (keyboard.w) {
             currentSpeed = walkSpeed;
@@ -252,7 +446,13 @@ function animate() {
         if (currentSpeed > 0) {
             const direction = new THREE.Vector3(0, 0, 1);
             direction.applyQuaternion(character.quaternion);
-            character.position.addScaledVector(direction, currentSpeed * delta);
+            const newPosition = character.position.clone().addScaledVector(direction, currentSpeed * delta);
+            
+            // Cek batas ground
+            if (newPosition.x > groundBoundary.minX && newPosition.x < groundBoundary.maxX &&
+                newPosition.z > groundBoundary.minZ && newPosition.z < groundBoundary.maxZ) {
+                character.position.copy(newPosition);
+            }
         }
 
         if (keyboard.a) {
@@ -267,7 +467,8 @@ function animate() {
             playAnimation('idle');
         }
 
-        // Logika pergerakan kamera
+        checkCollisions();
+
         const cameraTargetPosition = new THREE.Vector3();
         if (cameraMode === 'thirdPerson') {
             const cameraOffset = new THREE.Vector3(0, 2, 5);
@@ -281,14 +482,35 @@ function animate() {
         camera.lookAt(character.position);
     }
 
-    // Gerakkan marmer agar mengambang
+    // Animasi marmer mengambang
     const time = clock.getElapsedTime();
     marbles.forEach((marble, index) => {
-        // Gunakan sin(w*t + φ) untuk pergerakan halus, dengan φ (fase) unik untuk setiap marmer
-        const phase = index * Math.PI / 2.5;
-        const heightOffset = Math.sin(time + phase) * 0.5; // Ketinggian maksimum 0.5
-        marble.position.y = 1 + heightOffset;
+        if (!marble.userData.collected) {
+            const phase = index * Math.PI / 2.5;
+            const heightOffset = Math.sin(time + phase) * 0.5;
+            marble.position.y = 1 + heightOffset;
+
+            // Update posisi light
+            if (marble.userData.light) {
+                marble.userData.light.position.copy(marble.position);
+            }
+
+            // Rotasi marmer
+            marble.rotation.x += 0.005;
+            marble.rotation.y += 0.008;
+        }
     });
+
+    // Animasi kristal
+    if (scene.userData.crystals) {
+        scene.userData.crystals.forEach(crystal => {
+            const bobOffset = Math.sin(time + crystal.index) * 2;
+            crystal.mesh.position.y = 5 + bobOffset;
+            crystal.mesh.rotation.x += 0.01;
+            crystal.mesh.rotation.y += 0.015;
+            crystal.mesh.rotation.z += 0.008;
+        });
+    }
 
     if (mixer) {
         mixer.update(delta);
