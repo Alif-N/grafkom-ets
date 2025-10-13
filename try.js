@@ -53,9 +53,16 @@ const keyboard = {
     s: false,
     d: false,
     r: false,
-    v: false
+    space: false
 };
 let cameraMode = 'thirdPerson';
+
+// Variabel untuk jump
+let isJumping = false;
+let velocityY = 0;
+const gravity = 16;
+const jumpForce = 8;
+const groundLevel = 0;
 
 // Setup TextureLoader
 const textureLoader = new THREE.TextureLoader();
@@ -128,11 +135,17 @@ function setupCharacter(fbx) {
     scene.add(character);
 }
 
+// Variabel untuk menyimpan pohon dan bounding box-nya
+const trees = [];
+const treeBoxes = [];
+let characterBox = new THREE.Box3();
+
 // Memuat semua model dan setup animasi
 const modelsToLoad = [
     { name: 'idle', file: 'models/Idle.fbx' },
     { name: 'walk', file: 'models/Walking.fbx' },
-    { name: 'run', file: 'models/Running.fbx' }
+    { name: 'run', file: 'models/Running.fbx' },
+    { name: 'tree', file: 'models/Tree.fbx' } // Tambahkan model pohon
 ];
 
 modelsToLoad.forEach(model => {
@@ -145,6 +158,7 @@ Promise.all(loadingPromises)
         setupAnimations();
         createFloatingMarbles();
         createEnvironmentObjects();
+        createRandomTrees(); // Panggil fungsi untuk membuat pohon
     })
     .catch(err => {
         console.error('Failed to load one or more models:', err);
@@ -194,18 +208,46 @@ function playAnimation(name) {
 // Event listener untuk tombol keyboard
 window.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
-    if (keyboard.hasOwnProperty(key)) {
-        keyboard[key] = true;
+
+    if (key === ' ') {
+        e.preventDefault();
+        keyboard.space = true;
     }
     if (key === 'v') {
         cameraMode = cameraMode === 'thirdPerson' ? 'firstPerson' : 'thirdPerson';
+    }
+    if (key === 'r') {
+        keyboard.r = true;
+    }
+    if (key === 'w') {
+        keyboard.w = true;
+    }
+    if (key === 'a') {
+        keyboard.a = true;
+    }
+    if (key === 'd') {
+        keyboard.d = true;
     }
 });
 
 window.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
-    if (keyboard.hasOwnProperty(key)) {
-        keyboard[key] = false;
+
+    if (key === ' ') {
+        e.preventDefault();
+        keyboard.space = false;
+    }
+    if (key === 'r') {
+        keyboard.r = false;
+    }
+    if (key === 'w') {
+        keyboard.w = false;
+    }
+    if (key === 'a') {
+        keyboard.a = false;
+    }
+    if (key === 'd') {
+        keyboard.d = false;
     }
 });
 
@@ -234,7 +276,6 @@ const pokemonData = [
 
 // Fungsi untuk membuat lingkungan objek dekoratif dengan emissive glow
 function createEnvironmentObjects() {
-    // Membuat pilar-pilar cahaya dengan emissive material
     const pillarPositions = [
         { x: -20, z: -20 }, { x: 20, z: -20 },
         { x: -20, z: 20 }, { x: 20, z: 20 }
@@ -255,13 +296,11 @@ function createEnvironmentObjects() {
         pillar.receiveShadow = true;
         scene.add(pillar);
 
-        // Tambahkan point light di setiap pilar
         const pillarLight = new THREE.PointLight(0x00ff88, 0.4, 30);
         pillarLight.position.set(pos.x, 8, pos.z);
         scene.add(pillarLight);
     });
 
-    // Membuat kristal-kristal floating dengan emissive glow
     for (let i = 0; i < 6; i++) {
         const crystalGeometry = new THREE.OctahedronGeometry(0.6, 2);
         const crystalColors = [0xff0088, 0x00ffff, 0xffff00, 0x00ff00, 0xff8800, 0xff0000];
@@ -284,7 +323,6 @@ function createEnvironmentObjects() {
         crystal.castShadow = true;
         scene.add(crystal);
 
-        // Simpan referensi untuk animasi
         if (!scene.userData.crystals) {
             scene.userData.crystals = [];
         }
@@ -320,12 +358,73 @@ function createFloatingMarbles() {
         scene.add(marble);
         marbles.push(marble);
 
-        // Tambahkan point light untuk setiap marmer
         const marbleLight = new THREE.PointLight(0xffffff, 0.2, 10);
         marbleLight.position.copy(marble.position);
         scene.add(marbleLight);
         marble.userData.light = marbleLight;
     }
+}
+
+// Tambahkan loader tekstur daun dan batang
+const leafTexture = textureLoader.load('textures/leaf.png');
+const branchTexture = textureLoader.load('textures/leaf.png');
+
+// Fungsi untuk membuat dan menempatkan pohon secara acak
+function createRandomTrees() {
+    const treeCount = 20; // Jumlah pohon yang diinginkan
+    const groundSize = 60;
+
+    // Menangani pencahayaan dan bayangan untuk pohon
+    function setupTree(tree) {
+        tree.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                if (child.material) {
+                    // Deteksi mesh daun dan batang berdasarkan nama atau ukuran
+                    if (child.name.toLowerCase().includes('leaf') || child.material.name.toLowerCase().includes('leaf')) {
+                        child.material.map = leafTexture;
+                        child.material.transparent = true;
+                        child.material.opacity = 0.95;
+                    } else if (child.name.toLowerCase().includes('branch') || child.material.name.toLowerCase().includes('branch')) {
+                        child.material.map = branchTexture;
+                    }
+                    child.material.emissiveIntensity = 0.1;
+                    child.material.needsUpdate = true;
+                }
+            }
+        });
+        scene.add(tree);
+        trees.push(tree); // Simpan pohon di array
+    }
+
+    fbxLoader.load('models/Tree.fbx', (fbx) => {
+        for (let i = 0; i < treeCount; i++) {
+            const treeClone = fbx.clone();
+            treeClone.scale.set(0.01, 0.01, 0.01);
+
+            let placed = false;
+            let attempts = 0;
+            while (!placed && attempts < 50) {
+                const x = (Math.random() - 0.5) * groundSize * 0.8;
+                const z = (Math.random() - 0.5) * groundSize * 0.8;
+                treeClone.position.set(x, 0, z);
+
+                // Pastikan pohon tidak tumpang tindih dengan karakter awal
+                if (new THREE.Vector3(x, 0, z).distanceTo(character.position) > 5) {
+                    placed = true;
+                }
+                attempts++;
+            }
+            if (placed) {
+                setupTree(treeClone);
+                // Buat bounding box untuk pohon
+                const treeBox = new THREE.Box3().setFromObject(treeClone);
+                treeBoxes.push(treeBox);
+            }
+        }
+        console.log(`${trees.length} trees placed.`);
+    });
 }
 
 // Fungsi untuk menampilkan popup card
@@ -426,35 +525,67 @@ function checkCollisions() {
     });
 }
 
+// Fungsi untuk mendeteksi apakah karakter berada di tanah
+function isCharacterOnGround() {
+    return character.position.y <= groundLevel;
+}
+
+// Fungsi untuk menangani jump
+function handleJump() {
+    if (keyboard.space && isCharacterOnGround()) {
+        velocityY = jumpForce;
+        isJumping = true;
+    }
+}
+
+// Fungsi untuk update fisika jump
+function updateJumpPhysics(delta) {
+    if (!character) return;
+
+    if (isJumping || character.position.y > groundLevel) {
+        velocityY -= gravity * delta;
+        character.position.y += velocityY * delta;
+
+        if (character.position.y <= groundLevel) {
+            character.position.y = groundLevel;
+            velocityY = 0;
+            isJumping = false;
+        }
+    }
+}
+
 // Fungsi animasi utama
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
     if (character) {
-        const hasMovement = keyboard.w || keyboard.r || keyboard.a || keyboard.d;
-
         let currentSpeed = 0;
-        if (keyboard.w) {
-            currentSpeed = walkSpeed;
-            playAnimation('walk');
-        } else if (keyboard.r) {
+
+        if (keyboard.r) {
             currentSpeed = runSpeed;
             playAnimation('run');
+        } else if (keyboard.w) {
+            currentSpeed = walkSpeed;
+            playAnimation('walk');
         }
 
+        const hasMovement = keyboard.w || keyboard.a || keyboard.d || keyboard.r;
+        const previousPosition = character.position.clone();
+
+        // Gerakan maju/mundur
         if (currentSpeed > 0) {
             const direction = new THREE.Vector3(0, 0, 1);
             direction.applyQuaternion(character.quaternion);
             const newPosition = character.position.clone().addScaledVector(direction, currentSpeed * delta);
-            
-            // Cek batas ground
+
             if (newPosition.x > groundBoundary.minX && newPosition.x < groundBoundary.maxX &&
                 newPosition.z > groundBoundary.minZ && newPosition.z < groundBoundary.maxZ) {
                 character.position.copy(newPosition);
             }
         }
 
+        // Rotasi kiri/kanan
         if (keyboard.a) {
             character.rotation.y += rotationSpeed * delta;
         }
@@ -463,12 +594,35 @@ function animate() {
             character.rotation.y -= rotationSpeed * delta;
         }
 
-        if (!hasMovement && currentAnimation !== animations.idle) {
+        // Handle jump
+        handleJump();
+        updateJumpPhysics(delta);
+
+        // Update bounding box karakter
+        characterBox.setFromObject(character);
+
+        // Cek tabrakan dengan pohon
+        let hasCollided = false;
+        for (const box of treeBoxes) {
+            if (characterBox.intersectsBox(box)) {
+                hasCollided = true;
+                break;
+            }
+        }
+
+        // Jika terjadi tabrakan, kembalikan posisi karakter ke posisi sebelumnya
+        if (hasCollided) {
+            character.position.copy(previousPosition);
+        }
+
+        // Animasi idle
+        if (!hasMovement && !isJumping && currentAnimation !== animations.idle) {
             playAnimation('idle');
         }
 
         checkCollisions();
 
+        // Update camera position
         const cameraTargetPosition = new THREE.Vector3();
         if (cameraMode === 'thirdPerson') {
             const cameraOffset = new THREE.Vector3(0, 2, 5);
@@ -490,12 +644,10 @@ function animate() {
             const heightOffset = Math.sin(time + phase) * 0.5;
             marble.position.y = 1 + heightOffset;
 
-            // Update posisi light
             if (marble.userData.light) {
                 marble.userData.light.position.copy(marble.position);
             }
 
-            // Rotasi marmer
             marble.rotation.x += 0.005;
             marble.rotation.y += 0.008;
         }
