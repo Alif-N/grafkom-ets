@@ -52,7 +52,7 @@ const keyboard = {
     a: false,
     s: false,
     d: false,
-    r: false,
+    shift: false,
     space: false
 };
 let cameraMode = 'thirdPerson';
@@ -144,8 +144,7 @@ let characterBox = new THREE.Box3();
 const modelsToLoad = [
     { name: 'idle', file: 'models/Idle.fbx' },
     { name: 'walk', file: 'models/Walking.fbx' },
-    { name: 'run', file: 'models/Running.fbx' },
-    { name: 'tree', file: 'models/Tree.fbx' } // Tambahkan model pohon
+    { name: 'run', file: 'models/Running.fbx' }
 ];
 
 modelsToLoad.forEach(model => {
@@ -158,7 +157,7 @@ Promise.all(loadingPromises)
         setupAnimations();
         createFloatingMarbles();
         createEnvironmentObjects();
-        createRandomTrees(); // Panggil fungsi untuk membuat pohon
+        createRandomTrees();
     })
     .catch(err => {
         console.error('Failed to load one or more models:', err);
@@ -213,11 +212,11 @@ window.addEventListener('keydown', (e) => {
         e.preventDefault();
         keyboard.space = true;
     }
+    if (key === 'shift') {
+        keyboard.shift = true;
+    }
     if (key === 'v') {
         cameraMode = cameraMode === 'thirdPerson' ? 'firstPerson' : 'thirdPerson';
-    }
-    if (key === 'r') {
-        keyboard.r = true;
     }
     if (key === 'w') {
         keyboard.w = true;
@@ -237,8 +236,8 @@ window.addEventListener('keyup', (e) => {
         e.preventDefault();
         keyboard.space = false;
     }
-    if (key === 'r') {
-        keyboard.r = false;
+    if (key === 'shift') {
+        keyboard.shift = false;
     }
     if (key === 'w') {
         keyboard.w = false;
@@ -371,17 +370,15 @@ const branchTexture = textureLoader.load('textures/leaf.png');
 
 // Fungsi untuk membuat dan menempatkan pohon secara acak
 function createRandomTrees() {
-    const treeCount = 20; // Jumlah pohon yang diinginkan
+    const treeCount = 20;
     const groundSize = 60;
 
-    // Menangani pencahayaan dan bayangan untuk pohon
     function setupTree(tree) {
         tree.traverse((child) => {
             if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
                 if (child.material) {
-                    // Deteksi mesh daun dan batang berdasarkan nama atau ukuran
                     if (child.name.toLowerCase().includes('leaf') || child.material.name.toLowerCase().includes('leaf')) {
                         child.material.map = leafTexture;
                         child.material.transparent = true;
@@ -395,7 +392,7 @@ function createRandomTrees() {
             }
         });
         scene.add(tree);
-        trees.push(tree); // Simpan pohon di array
+        trees.push(tree);
     }
 
     fbxLoader.load('models/Tree.fbx', (fbx) => {
@@ -410,7 +407,6 @@ function createRandomTrees() {
                 const z = (Math.random() - 0.5) * groundSize * 0.8;
                 treeClone.position.set(x, 0, z);
 
-                // Pastikan pohon tidak tumpang tindih dengan karakter awal
                 if (new THREE.Vector3(x, 0, z).distanceTo(character.position) > 5) {
                     placed = true;
                 }
@@ -418,7 +414,6 @@ function createRandomTrees() {
             }
             if (placed) {
                 setupTree(treeClone);
-                // Buat bounding box untuk pohon
                 const treeBox = new THREE.Box3().setFromObject(treeClone);
                 treeBoxes.push(treeBox);
             }
@@ -562,7 +557,7 @@ function animate() {
     if (character) {
         let currentSpeed = 0;
 
-        if (keyboard.r) {
+        if (keyboard.w && keyboard.shift) {
             currentSpeed = runSpeed;
             playAnimation('run');
         } else if (keyboard.w) {
@@ -570,7 +565,7 @@ function animate() {
             playAnimation('walk');
         }
 
-        const hasMovement = keyboard.w || keyboard.a || keyboard.d || keyboard.r;
+        const hasMovement = keyboard.w || keyboard.a || keyboard.d;
         const previousPosition = character.position.clone();
 
         // Gerakan maju/mundur
