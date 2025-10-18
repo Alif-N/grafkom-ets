@@ -1,51 +1,907 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Character Animation dengan Three.js</title>
-    <!-- Bootstrap 5.3 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Highlight.js untuk syntax highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <!-- Header -->
-    <header class="bg-dark text-white py-3">
-        <div class="container">
-            <h1 class="h3 mb-0 text-center"><i class="fas fa-running me-2"></i>Pokemon Go dengan Three.js</h1>
-        </div>
-    </header>
-
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Canvas Container -->
-            <div class="p-0">
-                <div id="canvas-container">
-                    <!-- <div id="info" class="alert alert-info">
-                        <i class="fas fa-mouse me-2"></i>Gunakan mouse untuk memutar kamera dan scroll untuk zoom
-                    </div> -->
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Three.js & Dependencies -->
+    <title>Pokemon 3D Collector Game</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
-    
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Highlight.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-    
-    <!-- Main Script -->
-    <script src="try.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #1a1a2e;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #pokemon-list-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            min-width: 250px;
+            max-width: 300px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        #pokemon-list-container h3 {
+            font-size: 1.25rem;
+            margin: 0 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4CAF50;
+            color: #333;
+        }
+
+        #pokemon-list-container ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #pokemon-list-container li {
+            padding: 10px 0;
+            border-bottom: 1px dotted #ddd;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+            color: #555;
+        }
+
+        #pokemon-list-container li:last-child {
+            border-bottom: none;
+        }
+
+        .pokemon-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .total-count {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #4CAF50;
+            font-weight: bold;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        #controls-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            font-size: 14px;
+            z-index: 1000;
+        }
+
+        #controls-info h4 {
+            margin: 0 0 10px 0;
+            font-size: 1.1rem;
+        }
+
+        #controls-info ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        #controls-info li {
+            margin: 8px 0;
+        }
+
+        kbd {
+            background: #555;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes popCardIn {
+            0% {
+                transform: translate(-50%, -50%) scale(0) rotateY(90deg);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.05) rotateY(0deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1) rotateY(0deg);
+                opacity: 1;
+            }
+        }
+
+        @keyframes popCardOut {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0) rotateY(90deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <h2>Loading Pokemon World...</h2>
+        <p id="loading-text">Initializing...</p>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="pokemon-list-container">
+        <h3>🎮 Caught Pokémon 🏆</h3>
+        <div id="pokemon-list-content">
+            <p style="color: #999; font-style: italic;">None yet! Go catch some!</p>
+        </div>
+        <div class="total-count">Total: 0/5</div>
+    </div>
+
+    <div id="controls-info">
+        <h4>🎮 Controls</h4>
+        <ul>
+            <li><kbd>W</kbd> Move Forward</li>
+            <li><kbd>A/D</kbd> Turn Left/Right</li>
+            <li><kbd>Shift</kbd> Run (Hold with W)</li>
+            <li><kbd>Space</kbd> Jump</li>
+            <li><kbd>V</kbd> Change Camera View</li>
+        </ul>
+    </div>
+
+    <script>
+        let collectedPokemonNames = [];
+
+        function saveCollectedPokemon(pokemonName) {
+            if (!collectedPokemonNames.includes(pokemonName)) {
+                collectedPokemonNames.push(pokemonName);
+                localStorage.setItem('collectedPokemon', JSON.stringify(collectedPokemonNames));
+                updatePokemonListUI();
+            }
+        }
+
+        // Fungsi untuk memuat data dari localStorage saat aplikasi dimulai
+        function loadCollectedPokemon() {
+            const storedData = localStorage.getItem('collectedPokemon');
+            if (storedData) {
+                try {
+                    const parsedData = JSON.parse(storedData);
+                    if (Array.isArray(parsedData)) {
+                        collectedPokemonNames = parsedData;
+                    }
+                } catch (e) {
+                    console.error("Error parsing collected Pokemon from localStorage:", e);
+                }
+            }
+            updatePokemonListUI(); // Panggil untuk menampilkan data awal
+        }
+
+        function updateLoadingText(text) {
+            const loadingText = document.getElementById('loading-text');
+            if (loadingText) loadingText.textContent = text;
+        }
+
+        function hideLoadingScreen() {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                loadingScreen.style.opacity = '0';
+                loadingScreen.style.transition = 'opacity 0.5s';
+                setTimeout(() => loadingScreen.style.display = 'none', 500);
+            }
+        }
+
+        updateLoadingText('Initializing scene...');
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+        const canvasContainer = document.getElementById('canvas-container');
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        canvasContainer.appendChild(renderer.domElement);
+
+        camera.position.set(0, 1.5, 5);
+        camera.lookAt(0, 1, 0);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 7);
+        directionalLight.castShadow = true;
+
+        const shadowSize = 40;
+        directionalLight.shadow.camera.left = -shadowSize;
+        directionalLight.shadow.camera.right = shadowSize;
+        directionalLight.shadow.camera.top = shadowSize;
+        directionalLight.shadow.camera.bottom = -shadowSize;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 30;
+
+        // Resolusi bayangan yang tinggi
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        // --- AKHIR PERBAIKAN ---
+
+        scene.add(directionalLight);                
+
+        const pointLight = new THREE.PointLight(0xff6b35, 0.3, 100);
+        pointLight.position.set(10, 5, 10);
+        scene.add(pointLight);
+
+        scene.background = new THREE.Color(0x87ceeb);
+
+        const groundGeometry = new THREE.PlaneGeometry(60, 60);
+        const groundMaterial = new THREE.MeshLambertMaterial({
+            color: 0x90ee90,
+            transparent: true,
+            opacity: 0.95
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.1;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        let character = null;
+        let mixer = null;
+        let animations = {};
+        let animationClips = {};
+        let currentAnimation = null;
+        let previousAnimation = null;
+        let clock = new THREE.Clock();
+        const walkSpeed = 1;
+        const runSpeed = 3;
+        const rotationSpeed = 1.5;
+
+        const keyboard = {
+            w: false,
+            a: false,
+            s: false,
+            d: false,
+            shift: false,
+            space: false
+        };
+        let cameraMode = 'thirdPerson';
+
+        let isJumping = false;
+        let velocityY = 0;
+        const gravity = 16;
+        const jumpForce = 8;
+        const groundLevel = 0;
+
+        const trees = [];
+        const treeBoxes = [];
+        let characterBox = new THREE.Box3();
+
+        const marbles = [];
+        const marbleRadius = 0.8;
+        const collisionDistance = 1.5;
+
+        const groundBoundary = {
+            minX: -30,
+            maxX: 30,
+            minZ: -30,
+            maxZ: 30
+        };
+
+        const pokemonData = [
+            { name: 'Pikachu', type: 'Electric', color: '#FFD700' },
+            { name: 'Squirtle', type: 'Water', color: '#4A90E2' },
+            { name: 'Bulbasaur', type: 'Grass', color: '#7CB342' },
+            { name: 'Charmander', type: 'Fire', color: '#FF6B35' },
+            { name: 'Meowth', type: 'Normal', color: '#B8860B' }
+        ];
+
+        const fbxLoader = new THREE.FBXLoader();
+        const loadingPromises = [];
+
+        function loadFBX(name, file) {
+            return new Promise((resolve, reject) => {
+                updateLoadingText('Loading ' + name + '...');
+                fbxLoader.load(
+                    file,
+                    (fbx) => {
+                        console.log('Loaded: ' + name);
+                        if (name === 'idle') {
+                            setupCharacter(fbx);
+                        }
+                        if (fbx.animations && fbx.animations.length > 0) {
+                            animationClips[name] = fbx.animations[0];
+                        }
+                        resolve();
+                    },
+                    (progress) => {
+                        const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                        updateLoadingText('Loading ' + name + '... ' + percent + '%');
+                    },
+                    (err) => {
+                        console.error('Error loading ' + file + ':', err);
+                        reject(err);
+                    }
+                );
+            });
+        }
+
+        function setupCharacter(fbx) {
+            character = fbx;
+            character.scale.set(0.01, 0.01, 0.01);
+            character.position.set(0, 0, 0);
+            character.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            mixer = new THREE.AnimationMixer(character);
+            scene.add(character);
+            console.log('Character setup complete');
+        }
+
+        const modelsToLoad = [
+            { name: 'idle', file: 'models/Idle.fbx' },
+            { name: 'walk', file: 'models/Walking.fbx' },
+            { name: 'run', file: 'models/Running.fbx' }
+        ];
+
+        modelsToLoad.forEach(model => {
+            loadingPromises.push(loadFBX(model.name, model.file));
+        });
+
+        Promise.all(loadingPromises)
+            .then(() => {
+                console.log('All models loaded');
+                setupAnimations();
+                loadCollectedPokemon(); // <--- Panggil fungsi load di sini
+                createFloatingMarbles(); // Harus dipanggil setelah data dimuat
+                createEnvironmentObjects();
+                createRandomTrees();
+                // Hapus baris 'updatePokemonListUI();' yang lama jika ada, karena sudah dipanggil di loadCollectedPokemon()
+                hideLoadingScreen();
+            })
+            .catch(err => {
+                console.error('Failed to load models:', err);
+                updateLoadingText('Error loading models. Check console.');
+            });
+
+        function setupAnimations() {
+            if (!mixer) return;
+            
+            Object.keys(animationClips).forEach(name => {
+                const clip = animationClips[name];
+                if (clip) {
+                    animations[name] = mixer.clipAction(clip);
+                    animations[name].setLoop(THREE.LoopRepeat);
+                    animations[name].setEffectiveWeight(1.0);
+                }
+            });
+            
+            if (animations.idle) {
+                currentAnimation = animations.idle;
+                currentAnimation.play();
+            }
+        }
+
+        const crossFadeDuration = 0.3;
+        function playAnimation(name) {
+            if (!animations[name]) return;
+            if (currentAnimation === animations[name]) return;
+
+            previousAnimation = currentAnimation;
+            currentAnimation = animations[name];
+            currentAnimation.reset();
+            currentAnimation.setEffectiveTimeScale(1.0);
+            currentAnimation.play();
+
+            if (previousAnimation && previousAnimation !== currentAnimation) {
+                previousAnimation.crossFadeTo(currentAnimation, crossFadeDuration, true);
+            } else {
+                currentAnimation.fadeIn(crossFadeDuration);
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === ' ') {
+                e.preventDefault();
+                keyboard.space = true;
+            }
+            if (key === 'shift') keyboard.shift = true;
+            if (key === 'v') {
+                cameraMode = cameraMode === 'thirdPerson' ? 'firstPerson' : 'thirdPerson';
+            }
+            if (key === 'w') keyboard.w = true;
+            if (key === 'a') keyboard.a = true;
+            if (key === 'd') keyboard.d = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === ' ') {
+                e.preventDefault();
+                keyboard.space = false;
+            }
+            if (key === 'shift') keyboard.shift = false;
+            if (key === 'w') keyboard.w = false;
+            if (key === 'a') keyboard.a = false;
+            if (key === 'd') keyboard.d = false;
+        });
+
+        function createEnvironmentObjects() {
+            const pillarPositions = [
+                { x: -20, z: -20 }, { x: 20, z: -20 },
+                { x: -20, z: 20 }, { x: 20, z: 20 }
+            ];
+
+            pillarPositions.forEach(pos => {
+                const pillarGeometry = new THREE.CylinderGeometry(0.5, 0.5, 8, 32);
+                const pillarMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x333333,
+                    emissive: 0x00ff88,
+                    emissiveIntensity: 0.6,
+                    metalness: 0.5,
+                    roughness: 0.4
+                });
+                const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
+                pillar.position.set(pos.x, 4, pos.z);
+                pillar.castShadow = true;
+                pillar.receiveShadow = true;
+                scene.add(pillar);
+
+                const pillarLight = new THREE.PointLight(0x00ff88, 0.4, 30);
+                pillarLight.position.set(pos.x, 8, pos.z);
+                scene.add(pillarLight);
+            });
+
+            console.log('Environment objects created');
+        }
+
+        function createFloatingMarbles() {
+            const marbleGeometry = new THREE.SphereGeometry(marbleRadius, 32, 32);
+
+            for (let i = 0; i < pokemonData.length; i++) {
+                const pokemonName = pokemonData[i].name; // Dapatkan nama Pokémon
+
+                // Cek apakah Pokémon ini sudah dikumpulkan. Jika ya, lewati.
+                if (collectedPokemonNames.includes(pokemonName)) {
+                    continue; 
+                }
+
+                const marbleMaterial = new THREE.MeshPhysicalMaterial({
+                    color: i % 2 === 0 ? 0xff0000 : 0xffffff,
+                    roughness: 0.2,
+                    metalness: 0.1,
+                    clearcoat: 1,
+                    clearcoatRoughness: 0.2,
+                    emissive: i % 2 === 0 ? 0xff0000 : 0xffffff,
+                    emissiveIntensity: 0.3
+                });
+
+                const marble = new THREE.Mesh(marbleGeometry, marbleMaterial);
+                const groundSize = 60;
+                marble.position.x = (Math.random() - 0.5) * groundSize * 0.8;
+                marble.position.z = (Math.random() - 0.5) * groundSize * 0.8;
+                marble.position.y = 1;
+
+                marble.castShadow = true;
+                marble.userData.index = i;
+                marble.userData.pokemonName = pokemonName; // Menyimpan nama Pokémon
+                marble.userData.collected = false;
+                scene.add(marble);
+                marbles.push(marble);
+
+                const marbleLight = new THREE.PointLight(pokemonData[i].color, 0.3, 10);
+                marbleLight.position.copy(marble.position);
+                scene.add(marbleLight);
+                marble.userData.light = marbleLight;
+            }
+            console.log('Created ' + marbles.length + ' new pokeball marbles');
+        }
+
+        function createRandomTrees() {
+            console.log('Attempting to load trees...');
+            
+            fbxLoader.load(
+                'models/Tree.fbx',
+                (fbx) => {
+                    console.log('Tree model loaded');
+                    const treeCount = 20;
+                    const groundSize = 60;
+
+                    for (let i = 0; i < treeCount; i++) {
+                        const treeClone = fbx.clone();
+                        treeClone.scale.set(0.01, 0.01, 0.01);
+
+                        const x = (Math.random() - 0.5) * groundSize * 0.8;
+                        const z = (Math.random() - 0.5) * groundSize * 0.8;
+                        treeClone.position.set(x, 0, z);
+
+                        treeClone.traverse((child) => {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                                if (child.material) {
+                                    child.material.color = new THREE.Color(0x228B22);
+                                    child.material.needsUpdate = true;
+                                }
+                            }
+                        });
+
+                        scene.add(treeClone);
+                        trees.push(treeClone);
+
+                        const treeBox = new THREE.Box3().setFromObject(treeClone);
+                        treeBoxes.push(treeBox);
+                    }
+                    console.log(trees.length + ' trees placed');
+                },
+                undefined,
+                (err) => {
+                    console.warn('Tree model not found, creating placeholder trees');
+                    createPlaceholderTrees();
+                }
+            );
+        }
+
+        function createPlaceholderTrees() {
+            const treeCount = 15;
+            const groundSize = 60;
+
+            for (let i = 0; i < treeCount; i++) {
+                const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.4, 3, 8);
+                const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+
+                const leavesGeometry = new THREE.SphereGeometry(1.5, 8, 8);
+                const leavesMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+                const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+                leaves.position.y = 2.5;
+
+                const tree = new THREE.Group();
+                tree.add(trunk);
+                tree.add(leaves);
+
+                const x = (Math.random() - 0.5) * groundSize * 0.8;
+                const z = (Math.random() - 0.5) * groundSize * 0.8;
+                tree.position.set(x, 1.5, z);
+
+                trunk.castShadow = true;
+                leaves.castShadow = true;
+                trunk.receiveShadow = true;
+                leaves.receiveShadow = true;
+
+                scene.add(tree);
+                trees.push(tree);
+
+                const treeBox = new THREE.Box3().setFromObject(tree);
+                treeBoxes.push(treeBox);
+            }
+            console.log(trees.length + ' placeholder trees created');
+        }
+
+        function updatePokemonListUI() {
+            const contentDiv = document.getElementById('pokemon-list-content');
+            const totalDiv = document.querySelector('.total-count');
+
+            if (collectedPokemonNames.length === 0) {
+                contentDiv.innerHTML = '<p style="color: #999; font-style: italic;">None yet! Go catch some!</p>';
+            } else {
+                let html = '<ul>';
+                collectedPokemonNames.forEach(name => {
+                    const pokemon = pokemonData.find(p => p.name === name);
+                    const color = pokemon ? pokemon.color : '#FFFFFF';
+                    // Menggunakan class CSS bawaan di <style>
+                    html += '<li><span class="pokemon-indicator" style="background-color: ' + color + '; color: ' + color + ';"></span>' + name + '</li>';
+                });
+                html += '</ul>';
+                contentDiv.innerHTML = html;
+            }
+
+            totalDiv.textContent = 'Total: ' + collectedPokemonNames.length + '/' + pokemonData.length;
+        }
+
+        function showPopupCard(pokemon) {
+            let existingCard = document.getElementById('card-' + pokemon.name);
+            if (existingCard) return;
+
+            const card = document.createElement('div');
+            card.id = 'card-' + pokemon.name; // ID unik
+            card.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,248,255,0.90) 100%); border: 2px solid rgba(100,100,100,0.3); border-radius: 15px; padding: 30px; min-width: 300px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 10000; backdrop-filter: blur(10px); animation: popCardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;';
+
+            card.innerHTML = '<div style="font-size: 24px; margin-bottom: 10px; color: #666;">✨ Pokémon Caught! ✨</div><div style="font-size: 36px; font-weight: bold; color: #333; margin: 15px 0;">' + pokemon.name + '</div><div style="font-size: 18px; color: #888; margin-bottom: 20px; background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 6px;">[' + pokemon.type + ']</div><button onclick="this.parentElement.style.animation=\'popCardOut 0.5s ease-in forwards\'; setTimeout(() => this.parentElement.remove(), 500)" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: all 0.3s ease;">Awesome! 🎉</button>';
+
+            document.body.appendChild(card);
+
+            setTimeout(() => {
+                if (card.parentElement) {
+                    card.style.animation = 'popCardOut 0.5s ease-in forwards';
+                    setTimeout(() => card.remove(), 500);
+                }
+            }, 4000);
+        }
+
+        function restartGame() {
+            // 1. Bersihkan Local Storage
+            localStorage.removeItem('collectedPokemon');
+        
+            // 2. Muat ulang halaman
+            window.location.reload(); 
+        }
+        
+        function showVictoryScreen() {
+            let existingScreen = document.getElementById('victory-screen');
+            if (existingScreen) return;
+        
+            const screen = document.createElement('div');
+            screen.id = 'victory-screen';
+            screen.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.85);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                color: white;
+                text-align: center;
+                opacity: 0;
+                transition: opacity 1s;
+            `;
+        
+            screen.innerHTML = `
+                <h1 style="font-size: 4rem; margin-bottom: 20px; color: #FFD700; text-shadow: 0 0 10px #FFD700;">
+                    🏆 Semua Pokémon Tertangkap! 🏆
+                </h1>
+                <p style="font-size: 1.5rem; margin-bottom: 40px;">
+                    Anda telah berhasil mengumpulkan ${pokemonData.length}/${pokemonData.length} Pokémon!
+                </p>
+                <button id="restart-button" 
+                    style="padding: 15px 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer;
+                           background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); 
+                           color: white; border: none; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+                    Mulai Ulang Permainan (Hapus Data)
+                </button>
+            `;
+            
+            document.body.appendChild(screen);
+            
+            // Fade in
+            setTimeout(() => {
+                screen.style.opacity = '1';
+            }, 50);
+        
+            // Tambahkan event listener untuk tombol restart
+            document.getElementById('restart-button').addEventListener('click', restartGame);
+        }
+
+    function checkCollisions() {
+        if (!character) return;
+
+        marbles.filter(m => !m.userData.collected).forEach((marble) => {
+            const distance = character.position.distanceTo(marble.position);
+
+            if (distance < collisionDistance) {
+                marble.userData.collected = true;
+
+                scene.remove(marble);
+                if (marble.userData.light) {
+                    scene.remove(marble.userData.light);
+                }
+
+                // 1. Ambil data Pokémon
+                const pokemon = pokemonData[marble.userData.index];
+
+                // 2. Simpan nama Pokémon ke localStorage dan update UI
+                saveCollectedPokemon(pokemon.name);
+
+                // 3. Tampilkan kartu popup
+                showPopupCard(pokemon);
+
+                marble.scale.set(0, 0, 0);
+
+                // 4. Cek apakah semua Pokémon sudah terkumpul
+                if (collectedPokemonNames.length === pokemonData.length) {
+                    // Tunda sedikit agar popup card sempat muncul sebelum layar kemenangan
+                    setTimeout(showVictoryScreen, 1000); 
+                }
+            }
+        });
+    }
+
+        function isCharacterOnGround() {
+            return character.position.y <= groundLevel;
+        }
+
+        function handleJump() {
+            if (keyboard.space && isCharacterOnGround()) {
+                velocityY = jumpForce;
+                isJumping = true;
+            }
+        }
+
+        function updateJumpPhysics(delta) {
+            if (!character) return;
+
+            if (isJumping || character.position.y > groundLevel) {
+                velocityY -= gravity * delta;
+                character.position.y += velocityY * delta;
+
+                if (character.position.y <= groundLevel) {
+                    character.position.y = groundLevel;
+                    velocityY = 0;
+                    isJumping = false;
+                }
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            if (character) {
+                let currentSpeed = 0;
+
+                if (keyboard.w && keyboard.shift) {
+                    currentSpeed = runSpeed;
+                    playAnimation('run');
+                } else if (keyboard.w) {
+                    currentSpeed = walkSpeed;
+                    playAnimation('walk');
+                }
+
+                const hasMovement = keyboard.w || keyboard.a || keyboard.d;
+                const previousPosition = character.position.clone();
+
+                if (currentSpeed > 0) {
+                    const direction = new THREE.Vector3(0, 0, 1);
+                    direction.applyQuaternion(character.quaternion);
+                    const newPosition = character.position.clone().addScaledVector(direction, currentSpeed * delta);
+
+                    if (newPosition.x > groundBoundary.minX && newPosition.x < groundBoundary.maxX &&
+                        newPosition.z > groundBoundary.minZ && newPosition.z < groundBoundary.maxZ) {
+                        character.position.copy(newPosition);
+                    }
+                }
+
+                if (keyboard.a) {
+                    character.rotation.y += rotationSpeed * delta;
+                }
+
+                if (keyboard.d) {
+                    character.rotation.y -= rotationSpeed * delta;
+                }
+
+                handleJump();
+                updateJumpPhysics(delta);
+
+                characterBox.setFromObject(character);
+
+                let hasCollided = false;
+                for (const box of treeBoxes) {
+                    if (characterBox.intersectsBox(box)) {
+                        hasCollided = true;
+                        break;
+                    }
+                }
+
+                if (hasCollided) {
+                    character.position.copy(previousPosition);
+                }
+
+                if (!hasMovement && !isJumping && currentAnimation !== animations.idle) {
+                    playAnimation('idle');
+                }
+
+                checkCollisions();
+
+                const cameraTargetPosition = new THREE.Vector3();
+                if (cameraMode === 'thirdPerson') {
+                    const cameraOffset = new THREE.Vector3(0, 2, 5);
+                    cameraTargetPosition.copy(character.position).add(cameraOffset.applyQuaternion(character.quaternion));
+                } else {
+                    const cameraOffset = new THREE.Vector3(0, 2, -5);
+                    cameraTargetPosition.copy(character.position).add(cameraOffset.applyQuaternion(character.quaternion));
+                }
+
+                camera.position.lerp(cameraTargetPosition, 0.1);
+                camera.lookAt(character.position);
+            }
+
+            const time = clock.getElapsedTime();
+            marbles.forEach((marble, index) => {
+                if (!marble.userData.collected) {
+                    const phase = index * Math.PI / 2.5;
+                    const heightOffset = Math.sin(time + phase) * 0.5;
+                    marble.position.y = 1 + heightOffset;
+
+                    if (marble.userData.light) {
+                        marble.userData.light.position.copy(marble.position);
+                    }
+
+                    marble.rotation.x += 0.005;
+                    marble.rotation.y += 0.008;
+                }
+            });
+
+            if (mixer) {
+                mixer.update(delta);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        console.log('Pokemon 3D Game Initialized!');
+        console.log('Controls: W=Forward, A/D=Turn, Shift=Run, Space=Jump, V=Camera');
+        animate();
+    </script>
 </body>
 </html>

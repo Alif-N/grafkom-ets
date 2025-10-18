@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Animation dengan Three.js</title>
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Highlight.js untuk syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="bg-dark text-white py-3">
+        <div class="container">
+            <h1 class="h3 mb-0 text-center"><i class="fas fa-running me-2"></i>Pokemon Go dengan Three.js</h1>
+        </div>
+    </header>
+
+    <div class="container-fluid container-main">
+        <div class="row min-h-screen">
+            
+            <!-- Canvas Container (9 Kolom untuk desktop, 12 Kolom untuk mobile) -->
+            <div class="lg:w-3/4 w-full canvas-col p-2">
+                <div id="canvas-container" class="shadow-xl">
+                    <!-- <div id="info" class="bg-blue-100 text-blue-800 border border-blue-300">
+                        <i class="fas fa-mouse me-2"></i>Gunakan mouse untuk memutar kamera dan scroll untuk zoom
+                    </div> -->
+                </div>
+            </div>
+
+            <!-- Panel Kanan (Kontrol + Koleksi Pokemon, 3 Kolom untuk desktop) -->
+            <div class="lg:w-1/4 panel-col p-2">
+                <div class="panel-container">
+                    <!-- Panel 1: Kontrol Game -->
+                    <div id="control-panel" class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                        <h2 class="text-xl font-semibold mb-4 text-gray-800"><i class="fas fa-gamepad me-2"></i>Panel Kontrol</h2>
+                        
+                        <p class="text-sm text-gray-600 mb-4">Gunakan tombol keyboard:</p>
+
+                        <div class="space-y-3 text-sm">
+                            <!-- Key Bindings List -->
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg shadow-sm mb-2">
+                                <span class="font-mono text-base font-bold text-indigo-600 w-1/4">W</span>
+                                <span class="text-gray-700 w-3/4">Jalan ke depan</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg shadow-sm mb-2">
+                                <span class="font-mono text-base font-bold text-indigo-600 w-1/4">W + Shift</span>
+                                <span class="text-gray-700 w-3/4">Lari (Sprint)</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg shadow-sm mb-2">
+                                <span class="font-mono text-base font-bold text-indigo-600 w-1/4">A / D</span>
+                                <span class="text-gray-700 w-3/4">Putar kamera Kiri / Kanan</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg shadow-sm mb-2">
+                                <span class="font-mono text-base font-bold text-indigo-600 w-1/4">Space</span>
+                                <span class="text-gray-700 w-3/4">Lompat</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg shadow-sm mb-2">
+                                <span class="font-mono text-base font-bold text-indigo-600 w-1/4">V</span>
+                                <span class="text-gray-700 w-3/4">Toggle Tampilan</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Panel 2: Koleksi Pokemon -->
+                    <div id="pokemon-collection-panel" class="bg-white p-4 rounded-xl shadow-lg border border-gray-200 mt-4">
+                        <div id="pokemon-list-container">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+
+    <!-- Three.js & Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Highlight.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    
+    <!-- Main Script -->
+    <script src="try.js"></script>
+</body>
+</html>

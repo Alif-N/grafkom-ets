@@ -158,6 +158,7 @@ Promise.all(loadingPromises)
         createFloatingMarbles();
         createEnvironmentObjects();
         createRandomTrees();
+        loadCollectedPokemon();
     })
     .catch(err => {
         console.error('Failed to load one or more models:', err);
@@ -273,6 +274,74 @@ const pokemonData = [
     { name: 'Meowth', type: 'Normal', color: '#B8860B' }
 ];
 
+// Elemen UI untuk menampilkan daftar Pokémon
+// const pokemonListContainer = document.createElement('div');
+// pokemonListContainer.id = 'pokemon-list-container';
+// pokemonListContainer.style.cssText = `
+//     position: fixed;
+//     top: 10px;
+//     right: 10px;
+//     padding: 15px;
+//     background: rgba(0, 0, 0, 0.7);
+//     color: white;
+//     border-radius: 10px;
+//     font-family: sans-serif;
+//     max-height: 90vh;
+//     overflow-y: auto;
+//     z-index: 999;
+//     min-width: 200px;
+// `;
+// document.body.appendChild(pokemonListContainer);
+
+// Fungsi untuk menyimpan data ke localStorage
+function saveCollectedPokemon(pokemonName) {
+    if (!collectedPokemonNames.includes(pokemonName)) {
+        collectedPokemonNames.push(pokemonName);
+        localStorage.setItem('collectedPokemon', JSON.stringify(collectedPokemonNames));
+        updatePokemonListUI();
+    }
+}
+
+// Fungsi untuk memuat data dari localStorage saat aplikasi dimulai
+function loadCollectedPokemon() {
+    const storedData = localStorage.getItem('collectedPokemon');
+    if (storedData) {
+        collectedPokemonNames = JSON.parse(storedData);
+    }
+    updatePokemonListUI();
+}
+
+// Fungsi untuk mengupdate tampilan daftar Pokémon di UI
+function updatePokemonListUI() {
+    // Ambil elemen dari HTML
+    const pokemonListContainer = document.getElementById('pokemon-list-container');
+    
+    if (!pokemonListContainer) return; // Keluar jika elemen tidak ditemukan
+
+    let html = '<h3 style="font-size: 1.25rem; margin: 0 0 10px 0; border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #333;"><i class="fas fa-box-open me-2"></i>Caught Pokémon 🐾</h3>';
+    
+    if (collectedPokemonNames.length === 0) {
+        html += '<p style="color: #999; margin: 0; font-style: italic;">None yet! Go catch some!</p>';
+    } else {
+        html += '<ul style="list-style-type: none; padding: 0; margin: 0;">';
+        collectedPokemonNames.forEach(name => {
+            const pokemon = pokemonData.find(p => p.name === name);
+            const color = pokemon ? pokemon.color : '#FFFFFF';
+            html += `<li style="padding: 8px 0; border-bottom: 1px dotted #eee; display: flex; align-items: center; font-weight: 500;">
+                        <span style="display: inline-block; width: 12px; height: 12px; background-color: ${color}; border-radius: 50%; margin-right: 10px; box-shadow: 0 0 5px ${color};"></span>
+                        ${name}
+                    </li>`;
+        });
+        html += '</ul>';
+    }
+    
+    // Hitung total dan tampilkan
+    const totalHtml = `<p style="margin-top: 10px; font-weight: bold; border-top: 1px solid #ddd; padding-top: 5px;">Total: ${collectedPokemonNames.length}/${pokemonData.length}</p>`;
+    html += totalHtml;
+    
+    pokemonListContainer.innerHTML = html;
+}
+
 // Fungsi untuk membuat lingkungan objek dekoratif dengan emissive glow
 function createEnvironmentObjects() {
     const pillarPositions = [
@@ -334,6 +403,14 @@ function createFloatingMarbles() {
     const marbleGeometry = new THREE.SphereGeometry(marbleRadius, 32, 32);
 
     for (let i = 0; i < 5; i++) {
+
+        const pokemonName = pokemonData[i].name; // Dapatkan nama Pokémon berdasarkan indeks
+        
+        // Cek apakah Pokémon ini sudah dikumpulkan
+        if (collectedPokemonNames.includes(pokemonName)) {
+            continue; // Lewati pembuatan marmer jika Pokémon sudah dikumpulkan
+        }
+
         const marbleMaterial = new THREE.MeshPhysicalMaterial({
             map: pokeballTexture,
             roughness: 0.2,
@@ -500,9 +577,8 @@ function showPopupCard(marbleIndex) {
 function checkCollisions() {
     if (!character) return;
 
-    marbles.forEach((marble) => {
-        if (marble.userData.collected) return;
-
+    // Filter marmer yang belum dikumpulkan sebelum iterasi
+    marbles.filter(m => !m.userData.collected).forEach((marble) => { 
         const distance = character.position.distanceTo(marble.position);
 
         if (distance < collisionDistance) {
@@ -513,6 +589,9 @@ function checkCollisions() {
                 scene.remove(marble.userData.light);
             }
 
+            const pokemonName = pokemonData[marble.userData.index].name;
+            saveCollectedPokemon(pokemonName); // <-- SIMPAN KE LOCAL STORAGE
+            
             showPopupCard(marble.userData.index);
 
             marble.scale.set(0, 0, 0);
